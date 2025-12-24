@@ -10,44 +10,19 @@
 
 /* {{{ PHP_FUNCTION declarations
  */
-PHP_FUNCTION(hello_world);
-PHP_FUNCTION(add_numbers);
 PHP_FUNCTION(guile_eval);
-PHP_FUNCTION(guile_call);
-PHP_FUNCTION(guile_load_file);
 /* }}} */
 
 /* {{{ arginfo */
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_hello_world, 0, 0, IS_TRUE, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_add_numbers, 0, 2, IS_LONG, 0)
-    ZEND_ARG_TYPE_INFO(0, num1, IS_LONG, 0)
-    ZEND_ARG_TYPE_INFO(0, num2, IS_LONG, 0)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_guile_eval, 0, 1, IS_STRING, 0)
     ZEND_ARG_TYPE_INFO(0, code, IS_STRING, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_guile_call, 0, 2, IS_STRING, 0)
-    ZEND_ARG_TYPE_INFO(0, procedure, IS_STRING, 0)
-    ZEND_ARG_TYPE_INFO(0, args, IS_STRING, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_guile_load_file, 0, 1, IS_TRUE, 0)
-    ZEND_ARG_TYPE_INFO(0, filepath, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 /* }}} */
 
 /* {{{ pheme_functions[]
  */
 const zend_function_entry pheme_functions[] = {
-    PHP_FE(hello_world, arginfo_hello_world)
-    PHP_FE(add_numbers, arginfo_add_numbers)
     PHP_FE(guile_eval, arginfo_guile_eval)
-    PHP_FE(guile_call, arginfo_guile_call)
-    PHP_FE(guile_load_file, arginfo_guile_load_file)
     PHP_FE_END
 };
 /* }}} */
@@ -97,29 +72,6 @@ zend_module_entry pheme_module_entry = {
 #ifdef COMPILE_DL_PHEME
 ZEND_GET_MODULE(pheme)
 #endif
-
-/* {{{ proto string hello_world()
-   Return a greeting message */
-PHP_FUNCTION(hello_world)
-{
-    php_printf("Hello, world!\n");
-    RETURN_TRUE;
-}
-/* }}} */
-
-/* {{{ proto int add_numbers(int num1, int num2)
-   Add two numbers together */
-PHP_FUNCTION(add_numbers)
-{
-    long num1, num2;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ll", &num1, &num2) == FAILURE) {
-        return;
-    }
-
-    RETURN_LONG(num1 + num2);
-}
-/* }}} */
 
 /* Helper function to execute Guile eval in proper context with isolated environment */
 static void* guile_eval_helper(void* data) {
@@ -206,165 +158,3 @@ PHP_FUNCTION(guile_eval)
 }
 /* }}} */
 
-/* Helper structure for guile_call */
-struct guile_call_data {
-    char *procedure;
-    char *args;
-    char *result_str;
-    int error;
-};
-
-/* Helper function to execute Guile call in proper context */
-static void* guile_call_helper(void* data) {
-    struct guile_call_data *call_data = (struct guile_call_data*)data;
-    SCM proc_scm, args_scm, result;
-    
-    call_data->error = 0;
-    call_data->result_str = NULL;
-    
-    /* Convert procedure name to Guile symbol */
-    proc_scm = scm_from_locale_string(call_data->procedure);
-    
-    /* Convert args to a list of strings - improved parsing */
-    args_scm = scm_from_locale_string(call_data->args);
-    
-    /* Parse the arguments string into a list - safer approach */
-    SCM parsed_args = scm_eval_string(
-        scm_list_2(scm_from_locale_string("string-split"),
-                  scm_list_2(args_scm, scm_from_locale_string(" ")))
-    );
-
-    /* Check if we got a valid list */
-    if (SCM_FALSEP(parsed_args) || SCM_NULLP(parsed_args)) {
-        call_data->error = 1;
-        return NULL;
-    }
-
-    /* Call the procedure with the parsed arguments */
-    result = scm_call_1(proc_scm, scm_car(parsed_args));
-    
-    /* Check for errors */
-    if (SCM_FALSEP(result)) {
-        call_data->error = 2;
-        return NULL;
-    }
-
-    /* CRITICAL FIX: Proper memory management */
-    call_data->result_str = scm_to_locale_string(result);
-    
-    return NULL;
-}
-
-/* {{{ proto string guile_call(string procedure, string args)
-   Call a Scheme procedure with arguments */
-PHP_FUNCTION(guile_call)
-{
-    char *procedure, *args;
-    size_t proc_len, args_len;
-    struct guile_call_data call_data;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss", &procedure, &proc_len, &args, &args_len) == FAILURE) {
-        php_error_docref(NULL, E_WARNING, "PHeme: Failed to parse parameters");
-        return;
-    }
-
-    /* CRITICAL FIX: Copy strings to persistent memory */
-    call_data.procedure = estrndup(procedure, proc_len);
-    call_data.args = estrndup(args, args_len);
-    call_data.result_str = NULL;
-    call_data.error = 0;
-    
-    /* CRITICAL FIX: Use scm_with_guile wrapper - THIS WAS MISSING! */
-    scm_with_guile(guile_call_helper, &call_data);
-    
-    /* Free copied strings */
-    efree(call_data.procedure);
-    efree(call_data.args);
-    
-    /* Check for errors */
-    if (call_data.error == 1) {
-        php_error_docref(NULL, E_WARNING, "Failed to parse arguments: %s", args);
-        RETURN_FALSE;
-    }
-    
-    if (call_data.error == 2) {
-        php_error_docref(NULL, E_WARNING, "Error calling Scheme procedure: %s", procedure);
-        RETURN_FALSE;
-    }
-    
-    if (call_data.result_str == NULL) {
-        php_error_docref(NULL, E_WARNING, "Failed to convert Guile result to string");
-        RETURN_FALSE;
-    }
-    
-    RETVAL_STRING(call_data.result_str);
-    free(call_data.result_str);  /* Essential: free memory allocated by Guile */
-}
-/* }}} */
-
-/* Helper structure for guile_load_file */
-struct guile_load_data {
-    char *filepath;
-    int error;
-};
-
-/* Helper function to execute Guile file load in proper context */
-static void* guile_load_helper(void* data) {
-    struct guile_load_data *load_data = (struct guile_load_data*)data;
-    SCM filepath_scm, load_cmd, result;
-    
-    load_data->error = 0;
-    
-    /* Convert filepath to Guile string */
-    filepath_scm = scm_from_locale_string(load_data->filepath);
-
-    /* Create the load command */
-    load_cmd = scm_list_2(
-        scm_from_locale_string("load"),
-        filepath_scm
-    );
-    
-    /* Execute the load command */
-    result = scm_eval_string(load_cmd);
-    
-    /* Check for errors */
-    if (SCM_FALSEP(result)) {
-        load_data->error = 1;
-        return NULL;
-    }
-    
-    return NULL;
-}
-
-/* {{{ proto bool guile_load_file(string filepath)
-   Load and execute a Scheme file */
-PHP_FUNCTION(guile_load_file)
-{
-    char *filepath;
-    size_t filepath_len;
-    struct guile_load_data load_data;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &filepath, &filepath_len) == FAILURE) {
-        php_error_docref(NULL, E_WARNING, "PHeme: Failed to parse parameters");
-        return;
-    }
-
-    /* CRITICAL FIX: Copy filepath to persistent memory */
-    load_data.filepath = estrndup(filepath, filepath_len);
-    load_data.error = 0;
-    
-    /* CRITICAL FIX: Use scm_with_guile wrapper - THIS WAS MISSING! */
-    scm_with_guile(guile_load_helper, &load_data);
-    
-    /* Free copied string */
-    efree(load_data.filepath);
-    
-    /* Check for errors */
-    if (load_data.error) {
-        php_error_docref(NULL, E_WARNING, "Error loading Scheme file: %s", filepath);
-        RETURN_FALSE;
-    }
-
-    RETURN_TRUE;
-}
-/* }}} */
