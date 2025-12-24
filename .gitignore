@@ -1,0 +1,71 @@
+# PHP Extension Build Artifacts
+*.o
+*.lo
+*.la
+*.so
+*.so.*
+*.a
+*.pyc
+*.pyo
+
+# Libtool
+*.libs
+.libs/
+
+# PHP Extension Module Output
+modules/*.so
+modules/*.la
+
+# Build Directory
+build/
+
+# Autotools Generated Files
+Makefile
+Makefile.in
+Makefile.fragments
+Makefile.objects
+*.m4
+!build/*.m4
+aclocal.m4
+autom4te.cache/
+compile
+config.guess
+config.h
+config.h.in
+config.log
+config.nice
+config.status
+configure
+configure.ac
+depcomp
+install-sh
+libtool
+ltmain.sh
+missing
+stamp-h1
+
+# Test Files
+*.tmp
+*.temp
+test_*
+*.log
+
+# IDE and Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# PHP Stubs (generated)
+*.stub.php
+*.arginfo
+
+# Coverage Reports
+coverage/
+
+# Temporary Files
+tmp/
+temp/
+*.bak
