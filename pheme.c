@@ -6,6 +6,7 @@
 #include "php_ini.h"
 #include "ext/standard/info.h"
 #include <libguile.h>
+#include <stdio.h>
 
 /* {{{ PHP_FUNCTION declarations
  */
@@ -120,14 +121,39 @@ PHP_FUNCTION(add_numbers)
 }
 /* }}} */
 
+/* Helper function to execute Guile eval in proper context with isolated environment */
+static void* guile_eval_helper(void* data) {
+    char* code = (char*)data;
     SCM result, result_as_string;
     char* result_str;
+    SCM old_module;
+    static int counter = 0;
+    char create_cmd[256], eval_cmd[512];
     
     /* CRITICAL: Do NOT call PHP functions inside Guile context
      * Only Guile API calls should be made here */
     
-    /* Evaluate the Scheme code */
-    result = scm_c_eval_string(code);
+    /* ISOLATION FIX: Create a fresh module for each evaluation
+     * This ensures that variable definitions do not persist between calls */
+    
+    /* Save the current module */
+    old_module = scm_current_module();
+    
+    /* Create a fresh module with standard bindings using Scheme code
+     * Use module-use! to import (guile) bindings into the new module */
+    snprintf(create_cmd, sizeof(create_cmd),
+             "(let ((m (make-module))) (module-use! m (resolve-module '(guile))) m)");
+    
+    /* Create the fresh module and set it as current */
+    SCM fresh_module = scm_eval_string(scm_from_locale_string(create_cmd));
+    scm_set_current_module(fresh_module);
+    
+    /* Evaluate the user's code in the fresh module */
+    snprintf(eval_cmd, sizeof(eval_cmd), "(begin %s)", code);
+    result = scm_c_eval_string(eval_cmd);
+    
+    /* Restore the original module */
+    scm_set_current_module(old_module);
     
     /* Check for errors - NOTE: SCM_FALSEP only checks for #f, not errors! */
     if (SCM_FALSEP(result)) {
