@@ -1,10 +1,6 @@
 # Pheme Code Review TODO
 
 
-### 🟡 Whitespace-Only Code Validation
-**File:** `pheme.c:362-364`
-**Issue:** Whitespace-only code passes through empty check and may cause unexpected Scheme errors
-**Fix:** Trim whitespace before evaluation
 
 ## Thread Safety (Medium Priority)
 
@@ -49,7 +45,7 @@
 ## Testing (Low Priority)
 
 ### 🟢 Missing Test Cases
-- [ ] Error handling for invalid Scheme syntax
+- [x] Error handling for invalid Scheme syntax
 - [ ] Concurrent access from multiple threads
 - [ ] Memory pressure scenarios
 - [ ] Large result values

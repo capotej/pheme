@@ -122,16 +122,18 @@ static void* create_context_helper(void *data)
     return ctx;
 }
 
+/* {{{ Helper: Structure for passing data to eval helper
+ */
+typedef struct {
+    guile_context_t *ctx;
+    char *code;
+} eval_data_t;
+
 /* {{{ Helper: Evaluate code in a specific context
  * Called within scm_with_guile to ensure proper Guile mode
  */
 static void* eval_in_context_helper(void *data)
 {
-    typedef struct {
-        guile_context_t *ctx;
-        char *code;
-    } eval_data_t;
-    
     eval_data_t *ed = (eval_data_t*)data;
     guile_context_t *ctx = ed->ctx;
     SCM old_module, result, result_as_string;
@@ -407,11 +409,6 @@ ZEND_METHOD(GuileContext, eval)
     code_copy = estrndup(code, code_len);
     
     /* Evaluate in context */
-    typedef struct {
-        guile_context_t *ctx;
-        char *code;
-    } eval_data_t;
-    
     eval_data_t data = { obj->ctx, code_copy };
     
     result_str = (char*)scm_with_guile(eval_in_context_helper, &data);
