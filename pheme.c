@@ -172,8 +172,10 @@ static void* eval_in_context_helper(void *data)
     /* Convert the Scheme string to C string */
     result_str = scm_to_locale_string(result_as_string);
     
-    /* Check for conversion failure */
+    /* Check for conversion failure and clean up SCM value */
     if (result_str == NULL) {
+        /* Free the memory allocated by scm_to_locale_string before failure */
+        scm_gc_free(result_as_string, 0, "scm_to_locale_string");
         return NULL;
     }
     
