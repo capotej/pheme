@@ -117,15 +117,28 @@ static void* eval_in_context_helper(void *data)
     guile_context_t *ctx = ed->ctx;
     SCM old_module, result, result_as_string;
     char *result_str;
-    char eval_cmd[1024];
+    char *eval_cmd;
+    size_t cmd_size;
     
     /* Save current module and switch to context's module */
     old_module = scm_current_module();
     scm_set_current_module(ctx->module);
     
+    /* Dynamically allocate command buffer based on code length */
+    /* Format is "(begin %s)" which adds 8 chars (7 for wrapper + 1 for null terminator) */
+    cmd_size = strlen(ed->code) + 8 + 1;
+    eval_cmd = (char*)malloc(cmd_size);
+    if (eval_cmd == NULL) {
+        scm_set_current_module(old_module);
+        return NULL;
+    }
+    
     /* Evaluate the code - scm_c_eval_string uses current module for compilation */
-    snprintf(eval_cmd, sizeof(eval_cmd), "(begin %s)", ed->code);
+    snprintf(eval_cmd, cmd_size, "(begin %s)", ed->code);
     result = scm_c_eval_string(eval_cmd);
+    
+    /* Free the dynamically allocated command buffer */
+    free(eval_cmd);
     
     /* Restore original module */
     scm_set_current_module(old_module);
