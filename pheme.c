@@ -222,10 +222,12 @@ static void guile_context_free_object(zend_object *object)
 {
     guile_context_object_t *obj = guile_context_from_obj(object);
     
-    if (obj->ctx != NULL) {
+    /* Check for valid pointer (not NULL, not sentinel) */
+    if (obj->ctx != NULL && obj->ctx != (void*)-1) {
         free(obj->ctx);
-        obj->ctx = NULL;
     }
+    /* Mark as freed to prevent double-free and detect reuse after free */
+    obj->ctx = (void*)-1;
     
     zend_object_std_dtor(&obj->std);
 }
@@ -280,6 +282,12 @@ ZEND_METHOD(GuileContext, __construct)
     
     (void)ZEND_NUM_ARGS();
     
+    /* Check for freed sentinel - prevent reuse after free */
+    if (obj->ctx == (void*)-1) {
+        php_error_docref(NULL, E_WARNING, "Cannot reuse freed GuileContext object");
+        RETURN_FALSE;
+    }
+    
     /* Check if context already exists for this object */
     if (obj->ctx != NULL) {
         return;
@@ -309,7 +317,8 @@ ZEND_METHOD(GuileContext, eval)
         RETURN_FALSE;
     }
     
-    if (obj->ctx == NULL) {
+    /* Check for NULL (never allocated) or sentinel (freed) */
+    if (obj->ctx == NULL || obj->ctx == (void*)-1) {
         php_error_docref(NULL, E_WARNING, "Context not found for this object");
         RETURN_FALSE;
     }
@@ -345,13 +354,15 @@ ZEND_METHOD(GuileContext, free)
     
     (void)ZEND_NUM_ARGS();
     
-    if (obj->ctx == NULL) {
-        /* Already freed, nothing to do */
+    /* Check for sentinel (freed) or NULL (never allocated) */
+    if (obj->ctx == NULL || obj->ctx == (void*)-1) {
+        /* Already freed or never allocated, nothing to do */
         RETURN_TRUE;
     }
     
     free(obj->ctx);
-    obj->ctx = NULL;
+    /* Set sentinel to detect reuse after free */
+    obj->ctx = (void*)-1;
     
     RETURN_TRUE;
 }
