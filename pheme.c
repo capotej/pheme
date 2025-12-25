@@ -17,9 +17,23 @@ typedef struct _guile_context {
     SCM module;                    /* Guile module for this context */
 } guile_context_t;
 
-/* Maximum number of contexts we can track (PHP object handles are sequential) */
-#define MAX_CONTEXTS 1024
-static guile_context_t *context_array[MAX_CONTEXTS] = {0};
+/* Custom object handlers for thread-safe context storage */
+static zend_object_handlers guile_context_handlers;
+
+/* Structure extending zend_object to store Guile context */
+typedef struct _guile_context_object {
+    guile_context_t *ctx;          /* Guile context for this object */
+    zend_object  std;              /* Standard PHP object */
+} guile_context_object_t;
+
+/* Helper to get guile_context_object_t from zend_object */
+static inline guile_context_object_t *guile_context_from_obj(zend_object *obj) {
+    return (guile_context_object_t*)((char*)obj - obj->handlers->offset);
+}
+
+/* Forward declarations for object handlers */
+static zend_object *guile_context_create_object(zend_class_entry *ce);
+static void guile_context_free_object(zend_object *object);
 
 /* }}} */
 
@@ -164,13 +178,17 @@ PHP_MINIT_FUNCTION(pheme)
     /* Initialize Guile for the current thread */
     scm_init_guile();
     
-    /* Initialize context array */
-    memset(context_array, 0, sizeof(context_array));
+    /* Initialize custom handlers */
+    memcpy(&guile_context_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+    guile_context_handlers.offset = XtOffsetOf(guile_context_object_t, std);
+    guile_context_handlers.free_obj = guile_context_free_object;
+    guile_context_handlers.clone_obj = NULL;
     
     /* Register GuileContext class */
     zend_class_entry ce;
     INIT_CLASS_ENTRY(ce, "GuileContext", guile_context_methods);
-    guile_context_ce = zend_register_internal_class(&ce);
+    guile_context_ce = zend_register_internal_class_ex(&ce, NULL);
+    guile_context_ce->create_object = guile_context_create_object;
     
     return SUCCESS;
 }
@@ -180,16 +198,36 @@ PHP_MINIT_FUNCTION(pheme)
  */
 PHP_MSHUTDOWN_FUNCTION(pheme)
 {
-    /* Free all contexts that were allocated */
-    int i;
-    for (i = 0; i < MAX_CONTEXTS; i++) {
-        if (context_array[i] != NULL) {
-            free(context_array[i]);
-            context_array[i] = NULL;
-        }
+    /* No global cleanup needed - each object manages its own context */
+    return SUCCESS;
+}
+/* }}} */
+
+/* {{{ Object creation handler */
+static zend_object *guile_context_create_object(zend_class_entry *ce)
+{
+    guile_context_object_t *obj = zend_object_alloc(sizeof(guile_context_object_t), ce);
+    
+    zend_object_std_init(&obj->std, ce);
+    obj->ctx = NULL;
+    
+    obj->std.handlers = &guile_context_handlers;
+    
+    return &obj->std;
+}
+/* }}} */
+
+/* {{{ Object free handler */
+static void guile_context_free_object(zend_object *object)
+{
+    guile_context_object_t *obj = guile_context_from_obj(object);
+    
+    if (obj->ctx != NULL) {
+        free(obj->ctx);
+        obj->ctx = NULL;
     }
     
-    return SUCCESS;
+    zend_object_std_dtor(&obj->std);
 }
 /* }}} */
 
@@ -217,26 +255,20 @@ ZEND_GET_MODULE(pheme)
    Create a new Guile context with persistent state across evaluations */
 PHP_FUNCTION(guile_context)
 {
-    guile_context_t *ctx;
-    zend_object *object;
+    guile_context_object_t *obj;
     
-    (void)ZEND_NUM_ARGS();  /* Unused */
+    (void)ZEND_NUM_ARGS();
+    
+    /* Create PHP object - constructor will create context */
+    object_init_ex(return_value, guile_context_ce);
+    obj = guile_context_from_obj(Z_OBJ_P(return_value));
     
     /* Create context in Guile mode */
-    ctx = (guile_context_t*)scm_with_guile(create_context_helper, NULL);
+    obj->ctx = (guile_context_t*)scm_with_guile(create_context_helper, NULL);
     
-    if (ctx == NULL) {
+    if (obj->ctx == NULL) {
         php_error_docref(NULL, E_WARNING, "Failed to create Guile context");
         RETURN_FALSE;
-    }
-    
-    /* Create PHP object wrapping the context */
-    object = zend_objects_new(guile_context_ce);
-    ZVAL_OBJ(return_value, object);
-    
-    /* Store context in our array using object handle as index */
-    if (object->handle < MAX_CONTEXTS) {
-        context_array[object->handle] = ctx;
     }
 }
 
@@ -244,27 +276,21 @@ PHP_FUNCTION(guile_context)
    Constructor - creates context if not already done */
 ZEND_METHOD(GuileContext, __construct)
 {
-    guile_context_t *ctx;
-    zend_object *object = Z_OBJ_P(getThis());
+    guile_context_object_t *obj = guile_context_from_obj(Z_OBJ_P(getThis()));
     
     (void)ZEND_NUM_ARGS();
     
     /* Check if context already exists for this object */
-    if (object->handle < MAX_CONTEXTS && context_array[object->handle] != NULL) {
+    if (obj->ctx != NULL) {
         return;
     }
     
     /* Create new context */
-    ctx = (guile_context_t*)scm_with_guile(create_context_helper, NULL);
+    obj->ctx = (guile_context_t*)scm_with_guile(create_context_helper, NULL);
     
-    if (ctx == NULL) {
+    if (obj->ctx == NULL) {
         php_error_docref(NULL, E_WARNING, "Failed to create Guile context");
         RETURN_FALSE;
-    }
-    
-    /* Store context in our array */
-    if (object->handle < MAX_CONTEXTS) {
-        context_array[object->handle] = ctx;
     }
 }
 
@@ -276,23 +302,14 @@ ZEND_METHOD(GuileContext, eval)
     size_t code_len;
     char *result_str;
     char *code_copy;
-    guile_context_t *ctx;
-    zend_object *object = Z_OBJ_P(getThis());
+    guile_context_object_t *obj = guile_context_from_obj(Z_OBJ_P(getThis()));
     
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &code, &code_len) == FAILURE) {
         php_error_docref(NULL, E_WARNING, "Failed to parse parameters");
         RETURN_FALSE;
     }
     
-    /* Get context from array */
-    if (object->handle >= MAX_CONTEXTS) {
-        php_error_docref(NULL, E_WARNING, "Context handle out of range");
-        RETURN_FALSE;
-    }
-    
-    ctx = context_array[object->handle];
-    
-    if (ctx == NULL) {
+    if (obj->ctx == NULL) {
         php_error_docref(NULL, E_WARNING, "Context not found for this object");
         RETURN_FALSE;
     }
@@ -306,7 +323,7 @@ ZEND_METHOD(GuileContext, eval)
         char *code;
     } eval_data_t;
     
-    eval_data_t data = { ctx, code_copy };
+    eval_data_t data = { obj->ctx, code_copy };
     
     result_str = (char*)scm_with_guile(eval_in_context_helper, &data);
     efree(code_copy);
@@ -321,52 +338,29 @@ ZEND_METHOD(GuileContext, eval)
 }
 
 /* {{{ proto void GuileContext::free()
-    Free the Guile context and release associated resources */
+   Free the Guile context and release associated resources */
 ZEND_METHOD(GuileContext, free)
 {
-    guile_context_t *ctx;
-    zend_object *object = Z_OBJ_P(getThis());
+    guile_context_object_t *obj = guile_context_from_obj(Z_OBJ_P(getThis()));
     
     (void)ZEND_NUM_ARGS();
     
-    /* Check if handle is valid */
-    if (object->handle >= MAX_CONTEXTS) {
-        php_error_docref(NULL, E_WARNING, "Context handle out of range");
-        RETURN_FALSE;
-    }
-    
-    /* Check if context already freed */
-    if (context_array[object->handle] == NULL) {
+    if (obj->ctx == NULL) {
         /* Already freed, nothing to do */
         RETURN_TRUE;
     }
     
-    ctx = context_array[object->handle];
-    
-    /* Free the context struct */
-    free(ctx);
-    
-    /* Mark as freed in the array */
-    context_array[object->handle] = NULL;
+    free(obj->ctx);
+    obj->ctx = NULL;
     
     RETURN_TRUE;
 }
 
 /* {{{ proto void GuileContext::__destruct()
-    Destructor - automatically frees the Guile context */
+   Destructor - automatically frees the Guile context
+   Note: This is handled by guile_context_free_object, but kept for API compatibility */
 ZEND_METHOD(GuileContext, __destruct)
 {
-    guile_context_t *ctx;
-    zend_object *object = Z_OBJ_P(getThis());
-    
-    /* Check if handle is valid and context exists */
-    if (object->handle < MAX_CONTEXTS && context_array[object->handle] != NULL) {
-        ctx = context_array[object->handle];
-        
-        /* Free the context struct */
-        free(ctx);
-        
-        /* Mark as freed in the array */
-        context_array[object->handle] = NULL;
-    }
+    /* Context is freed by the free_obj handler, nothing to do here */
+    (void)ZEND_NUM_ARGS();
 }
