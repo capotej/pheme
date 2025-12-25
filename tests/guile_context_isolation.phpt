@@ -26,15 +26,14 @@ echo "Context 1 - Read test-var: $check_ctx1\n";
 
 // Now check if context 2 has this variable - it should NOT
 // Guile will error when trying to access undefined variable
-$check_ctx2 = @$ctx2->eval('test-var');
-// The error output will appear before our message
-// We check the result - it should be false
-if ($check_ctx2 === false) {
+$check_ctx2 = false;
+try {
+    $ctx2->eval('test-var');
+} catch (Exception $e) {
+    // Expected - variable should not exist in context 2
+    $check_ctx2 = false;
     echo "Context 2 - test-var isolation verified!\n";
     $isolation_ok = true;
-} else {
-    echo "Context 2 - test-var value: $check_ctx2\n";
-    $isolation_ok = false;
 }
 
 // Test 2: Set a different variable in context 2

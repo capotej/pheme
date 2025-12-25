@@ -42,25 +42,19 @@ echo "Set test-val in fresh context\n";
 $ctx2->free();
 echo "Freed the context\n";
 
-// Attempting to use freed context - should warn
+// Attempting to use freed context - should throw exception
 $errorOccurred = false;
-set_error_handler(function($errno, $errstr) use (&$errorOccurred) {
+try {
+    $result = $ctx2->eval('test-val');
+} catch (Exception $e) {
     $errorOccurred = true;
-    // PHP includes function name in warning, e.g., "GuileContext::eval(): ..."
-    if (strpos($errstr, 'Context not found') !== false) {
-        echo "Error caught (expected): Context not found for this object\n";
-    } else {
-        echo "Error caught: $errstr\n";
-    }
-});
+    echo "Exception caught (expected): " . $e->getMessage() . "\n";
+}
 
-$result = $ctx2->eval('test-val');
-restore_error_handler();
-
-if ($errorOccurred || $result === false) {
-    echo "PASS: Using freed context correctly fails\n";
+if ($errorOccurred) {
+    echo "PASS: Using freed context correctly throws exception\n";
 } else {
-    echo "FAIL: Using freed context should fail but got: $result\n";
+    echo "FAIL: Using freed context should throw exception but got: $result\n";
 }
 
 // Test 5: Verify multiple contexts can be created and freed independently
@@ -113,8 +107,8 @@ Function returned, object should be automatically cleaned up
 --- Test 4: Using context after free should fail ---
 Set test-val in fresh context
 Freed the context
-Error caught (expected): Context not found for this object
-PASS: Using freed context correctly fails
+Exception caught (expected): Context not found for this object
+PASS: Using freed context correctly throws exception
 
 --- Test 5: Multiple contexts independent lifecycle ---
 Created context 0 with idx=0

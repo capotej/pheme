@@ -317,7 +317,7 @@ PHP_FUNCTION(guile_context)
     obj->ctx = (guile_context_t*)scm_with_guile(create_context_helper, NULL);
     
     if (obj->ctx == NULL) {
-        php_error_docref("guile_context", E_WARNING, "Failed to create Guile context");
+        zend_throw_exception(NULL, "Failed to create Guile context", 0);
         RETURN_FALSE;
     }
 }
@@ -332,8 +332,8 @@ ZEND_METHOD(GuileContext, __construct)
     
     /* Check for freed sentinel - prevent reuse after free */
     if (obj->ctx == (void*)-1) {
-        php_error_docref("guile_context::__construct", E_WARNING, "Cannot reuse freed GuileContext object");
-        RETURN_FALSE;
+        zend_throw_exception(NULL, "Cannot reuse freed GuileContext object", 0);
+        return;
     }
     
     /* Check if context already exists for this object */
@@ -361,8 +361,8 @@ ZEND_METHOD(GuileContext, eval)
     guile_context_object_t *obj = guile_context_from_obj(Z_OBJ_P(getThis()));
     
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &code, &code_len) == FAILURE) {
-        php_error_docref("guile_context::eval", E_WARNING, "Failed to parse parameters");
-        RETURN_FALSE;
+        zend_throw_exception(NULL, "Failed to parse parameters for eval", 0);
+        return;
     }
     
     /* Early validation for empty code */
@@ -372,8 +372,8 @@ ZEND_METHOD(GuileContext, eval)
     
     /* Check for NULL (never allocated) or sentinel (freed) */
     if (obj->ctx == NULL || obj->ctx == (void*)-1) {
-        php_error_docref("guile_context::eval", E_WARNING, "Context not found for this object");
-        RETURN_FALSE;
+        zend_throw_exception(NULL, "Context not found for this object", 0);
+        return;
     }
     
     /* Copy PHP string to persistent memory for Guile */
@@ -392,8 +392,8 @@ ZEND_METHOD(GuileContext, eval)
     
     /* Check for error sentinel - distinct from NULL which could be a valid string */
     if (result_str == NULL || result_str == (void*)-1) {
-        php_error_docref("guile_context::eval", E_WARNING, "Error evaluating Scheme code");
-        RETURN_FALSE;
+        zend_throw_exception(NULL, "Error evaluating Scheme code", 0);
+        return;
     }
     
     /* Return the result as a PHP string */
