@@ -217,6 +217,31 @@ static zend_object *guile_context_create_object(zend_class_entry *ce)
 }
 /* }}} */
 
+/* {{{ Helper: Free Guile context and cleanup module
+ * Must be called within scm_with_guile to ensure proper Guile mode
+ */
+static void *free_guile_context_helper(void *data)
+{
+    guile_context_t *ctx = (guile_context_t*)data;
+    SCM old_module;
+    
+    if (ctx == NULL || ctx == (void*)-1) {
+        return NULL;
+    }
+    
+    /* Clear all bindings from the module to release resources
+     * This allows Guile's garbage collector to reclaim the module */
+    old_module = scm_current_module();
+    scm_set_current_module(ctx->module);
+    scm_c_eval_string("(module-clear! (current-module))");
+    scm_set_current_module(old_module);
+    
+    /* Now free the struct */
+    free(ctx);
+    
+    return NULL;
+}
+
 /* {{{ Object free handler */
 static void guile_context_free_object(zend_object *object)
 {
@@ -224,7 +249,8 @@ static void guile_context_free_object(zend_object *object)
     
     /* Check for valid pointer (not NULL, not sentinel) */
     if (obj->ctx != NULL && obj->ctx != (void*)-1) {
-        free(obj->ctx);
+        /* Clean up Guile module before freeing the struct */
+        scm_with_guile(free_guile_context_helper, obj->ctx);
     }
     /* Mark as freed to prevent double-free and detect reuse after free */
     obj->ctx = (void*)-1;
@@ -347,7 +373,7 @@ ZEND_METHOD(GuileContext, eval)
 }
 
 /* {{{ proto void GuileContext::free()
-   Free the Guile context and release associated resources */
+    Free the Guile context and release associated resources */
 ZEND_METHOD(GuileContext, free)
 {
     guile_context_object_t *obj = guile_context_from_obj(Z_OBJ_P(getThis()));
@@ -360,7 +386,9 @@ ZEND_METHOD(GuileContext, free)
         RETURN_TRUE;
     }
     
-    free(obj->ctx);
+    /* Clean up Guile module before freeing the struct */
+    scm_with_guile(free_guile_context_helper, obj->ctx);
+    
     /* Set sentinel to detect reuse after free */
     obj->ctx = (void*)-1;
     
