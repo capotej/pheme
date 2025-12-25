@@ -5,6 +5,7 @@
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
+#include "zend_exceptions.h"
 #include <libguile.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -323,8 +324,8 @@ ZEND_METHOD(GuileContext, __construct)
     obj->ctx = (guile_context_t*)scm_with_guile(create_context_helper, NULL);
     
     if (obj->ctx == NULL) {
-        php_error_docref(NULL, E_WARNING, "Failed to create Guile context");
-        RETURN_FALSE;
+        zend_throw_exception(NULL, "Failed to create Guile context", 0);
+        return;
     }
 }
 
