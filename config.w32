@@ -1,0 +1,12 @@
+// $Id$
+// config.w32 for pheme extension
+
+ARG_ENABLE('pheme', 'Enable pheme extension', 'no');
+
+if (PHP_PHEME != 'no') {
+    EXTENSION('pheme', 'pheme.c', PHP_PHEME_SHARED, '/DZEND_ENABLE_ZVAL_CONSTANT');
+
+    if (!ADD_FLAG('CFLAGS_PHEME', '-I$(PHPEXT)/pheme')) {
+        WARNING('Could not add CFLAGS_PHEME');
+    }
+}
