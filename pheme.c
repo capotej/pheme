@@ -303,9 +303,8 @@ ZEND_METHOD(GuileContext, eval)
         RETURN_FALSE;
     }
     
-    /* Return the result as a PHP string and free Guile-allocated memory */
+    /* Return the result as a PHP string */
     RETVAL_STRING(result_str);
-    free(result_str);
 }
 
 /* {{{ proto void GuileContext::free()
