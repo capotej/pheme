@@ -25,6 +25,8 @@ Makefile.in
 Makefile.fragments
 Makefile.objects
 *.m4
+!config.m4
+!config.w32
 !build/*.m4
 aclocal.m4
 autom4te.cache/
