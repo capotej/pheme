@@ -148,7 +148,7 @@ static void* eval_in_context_helper(void *data)
     eval_cmd = (char*)malloc(cmd_size);
     if (eval_cmd == NULL) {
         scm_set_current_module(old_module);
-        return NULL;
+        return (void*)-1;
     }
     
     /* Evaluate the code - scm_c_eval_string uses current module for compilation */
@@ -163,7 +163,7 @@ static void* eval_in_context_helper(void *data)
     
     /* Check for errors */
     if (SCM_FALSEP(result)) {
-        return NULL;
+        return (void*)-1;
     }
     
     /* Convert result to string using scm_object_to_string */
@@ -176,7 +176,7 @@ static void* eval_in_context_helper(void *data)
     if (result_str == NULL) {
         /* Free the memory allocated by scm_to_locale_string before failure */
         scm_gc_free(result_as_string, 0, "scm_to_locale_string");
-        return NULL;
+        return (void*)-1;
     }
     
     return result_str;
@@ -390,7 +390,8 @@ ZEND_METHOD(GuileContext, eval)
     result_str = (char*)scm_with_guile(eval_in_context_helper, &data);
     efree(code_copy);
     
-    if (result_str == NULL) {
+    /* Check for error sentinel - distinct from NULL which could be a valid string */
+    if (result_str == NULL || result_str == (void*)-1) {
         php_error_docref("guile_context::eval", E_WARNING, "Error evaluating Scheme code");
         RETURN_FALSE;
     }
