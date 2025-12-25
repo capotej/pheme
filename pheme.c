@@ -204,6 +204,17 @@ PHP_MSHUTDOWN_FUNCTION(pheme)
 }
 /* }}} */
 
+/* {{{ PHP_MINFO_FUNCTION
+ */
+PHP_MINFO_FUNCTION(pheme)
+{
+    php_info_print_table_start();
+    php_info_print_table_header(2, "pheme support", "enabled");
+    php_info_print_table_row(2, "pheme version", "0.2.0");
+    php_info_print_table_end();
+}
+/* }}} */
+
 /* {{{ Object creation handler */
 static zend_object *guile_context_create_object(zend_class_entry *ce)
 {
@@ -270,7 +281,7 @@ zend_module_entry pheme_module_entry = {
     PHP_MSHUTDOWN(pheme),  /* PHP_MSHUTDOWN */
     NULL,  /* PHP_RINIT */
     NULL,  /* PHP_RSHUTDOWN */
-    NULL,  /* PHP_MINFO */
+    PHP_MINFO(pheme),  /* PHP_MINFO */
     "0.2.0",
     STANDARD_MODULE_PROPERTIES
 };
