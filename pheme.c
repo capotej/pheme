@@ -36,6 +36,9 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_guile_context_eval, 0, 1, IS_STRING, 0)
     ZEND_ARG_TYPE_INFO(0, code, IS_STRING, 0)
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_guile_context_free, 0, 0, 0)
+ZEND_END_ARG_INFO()
 /* }}} */
 
 /* {{{ pheme_functions[]
@@ -53,10 +56,14 @@ static zend_class_entry *guile_context_ce;
 /* Declare method implementations for GuileContext class */
 ZEND_METHOD(GuileContext, __construct);
 ZEND_METHOD(GuileContext, eval);
+ZEND_METHOD(GuileContext, free);
+ZEND_METHOD(GuileContext, __destruct);
 
 static const zend_function_entry guile_context_methods[] = {
     PHP_ME(GuileContext, __construct, arginfo_guile_context_construct, ZEND_ACC_PUBLIC)
     PHP_ME(GuileContext, eval, arginfo_guile_context_eval, ZEND_ACC_PUBLIC)
+    PHP_ME(GuileContext, free, arginfo_guile_context_free, ZEND_ACC_PUBLIC)
+    PHP_ME(GuileContext, __destruct, arginfo_guile_context_free, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 /* }}} */
@@ -299,4 +306,55 @@ ZEND_METHOD(GuileContext, eval)
     /* Return the result as a PHP string and free Guile-allocated memory */
     RETVAL_STRING(result_str);
     free(result_str);
+}
+
+/* {{{ proto void GuileContext::free()
+    Free the Guile context and release associated resources */
+ZEND_METHOD(GuileContext, free)
+{
+    guile_context_t *ctx;
+    zend_object *object = Z_OBJ_P(getThis());
+    
+    (void)ZEND_NUM_ARGS();
+    
+    /* Check if handle is valid */
+    if (object->handle >= MAX_CONTEXTS) {
+        php_error_docref(NULL, E_WARNING, "Context handle out of range");
+        RETURN_FALSE;
+    }
+    
+    /* Check if context already freed */
+    if (context_array[object->handle] == NULL) {
+        /* Already freed, nothing to do */
+        RETURN_TRUE;
+    }
+    
+    ctx = context_array[object->handle];
+    
+    /* Free the context struct */
+    free(ctx);
+    
+    /* Mark as freed in the array */
+    context_array[object->handle] = NULL;
+    
+    RETURN_TRUE;
+}
+
+/* {{{ proto void GuileContext::__destruct()
+    Destructor - automatically frees the Guile context */
+ZEND_METHOD(GuileContext, __destruct)
+{
+    guile_context_t *ctx;
+    zend_object *object = Z_OBJ_P(getThis());
+    
+    /* Check if handle is valid and context exists */
+    if (object->handle < MAX_CONTEXTS && context_array[object->handle] != NULL) {
+        ctx = context_array[object->handle];
+        
+        /* Free the context struct */
+        free(ctx);
+        
+        /* Mark as freed in the array */
+        context_array[object->handle] = NULL;
+    }
 }
