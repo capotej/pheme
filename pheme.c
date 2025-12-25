@@ -355,6 +355,11 @@ ZEND_METHOD(GuileContext, eval)
         RETURN_FALSE;
     }
     
+    /* Early validation for empty code */
+    if (code_len == 0) {
+        RETURN_EMPTY_STRING();
+    }
+    
     /* Check for NULL (never allocated) or sentinel (freed) */
     if (obj->ctx == NULL || obj->ctx == (void*)-1) {
         php_error_docref(NULL, E_WARNING, "Context not found for this object");
