@@ -78,6 +78,7 @@ pheme.lo: /Users/julio/src/pheme/pheme.c /Users/julio/src/pheme/config.h \
   /opt/homebrew/Cellar/php/8.5.1_1/include/php/TSRM/TSRM.h \
   /opt/homebrew/Cellar/php/8.5.1_1/include/php/main/php_reentrancy.h \
   /opt/homebrew/Cellar/php/8.5.1_1/include/php/ext/standard/info.h \
+  /opt/homebrew/Cellar/php/8.5.1_1/include/php/Zend/zend_exceptions.h \
   /opt/homebrew/Cellar/guile/3.0.11/include/guile/3.0/libguile.h \
   /opt/homebrew/Cellar/guile/3.0.11/include/guile/3.0/libguile/scm.h \
   /opt/homebrew/Cellar/guile/3.0.11/include/guile/3.0/libguile/scmconfig.h \
