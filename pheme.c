@@ -54,6 +54,9 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_guile_context_free, 0, 0, 0)
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_guile_context_destruct, 0, 0, 0)
+ZEND_END_ARG_INFO()
 /* }}} */
 
 /* {{{ pheme_functions[]
@@ -78,7 +81,7 @@ static const zend_function_entry guile_context_methods[] = {
     PHP_ME(GuileContext, __construct, arginfo_guile_context_construct, ZEND_ACC_PUBLIC)
     PHP_ME(GuileContext, eval, arginfo_guile_context_eval, ZEND_ACC_PUBLIC)
     PHP_ME(GuileContext, free, arginfo_guile_context_free, ZEND_ACC_PUBLIC)
-    PHP_ME(GuileContext, __destruct, arginfo_guile_context_free, ZEND_ACC_PUBLIC)
+    PHP_ME(GuileContext, __destruct, arginfo_guile_context_destruct, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 /* }}} */
@@ -307,7 +310,7 @@ PHP_FUNCTION(guile_context)
     obj->ctx = (guile_context_t*)scm_with_guile(create_context_helper, NULL);
     
     if (obj->ctx == NULL) {
-        php_error_docref(NULL, E_WARNING, "Failed to create Guile context");
+        php_error_docref("guile_context", E_WARNING, "Failed to create Guile context");
         RETURN_FALSE;
     }
 }
@@ -322,7 +325,7 @@ ZEND_METHOD(GuileContext, __construct)
     
     /* Check for freed sentinel - prevent reuse after free */
     if (obj->ctx == (void*)-1) {
-        php_error_docref(NULL, E_WARNING, "Cannot reuse freed GuileContext object");
+        php_error_docref("guile_context::__construct", E_WARNING, "Cannot reuse freed GuileContext object");
         RETURN_FALSE;
     }
     
@@ -351,7 +354,7 @@ ZEND_METHOD(GuileContext, eval)
     guile_context_object_t *obj = guile_context_from_obj(Z_OBJ_P(getThis()));
     
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &code, &code_len) == FAILURE) {
-        php_error_docref(NULL, E_WARNING, "Failed to parse parameters");
+        php_error_docref("guile_context::eval", E_WARNING, "Failed to parse parameters");
         RETURN_FALSE;
     }
     
@@ -362,7 +365,7 @@ ZEND_METHOD(GuileContext, eval)
     
     /* Check for NULL (never allocated) or sentinel (freed) */
     if (obj->ctx == NULL || obj->ctx == (void*)-1) {
-        php_error_docref(NULL, E_WARNING, "Context not found for this object");
+        php_error_docref("guile_context::eval", E_WARNING, "Context not found for this object");
         RETURN_FALSE;
     }
     
@@ -381,7 +384,7 @@ ZEND_METHOD(GuileContext, eval)
     efree(code_copy);
     
     if (result_str == NULL) {
-        php_error_docref(NULL, E_WARNING, "Error evaluating Scheme code");
+        php_error_docref("guile_context::eval", E_WARNING, "Error evaluating Scheme code");
         RETURN_FALSE;
     }
     
