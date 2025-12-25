@@ -1,12 +1,6 @@
 # Pheme Code Review TODO
 
 
-### 🟡 Inconsistent Error Reporting
-**File:** `pheme.c` (multiple locations)
-**Issue:** Some errors use `php_error_docref()` (warnings), others use `zend_throw_exception()` (exceptions)
-**Impact:** Inconsistent API behavior confuses users
-**Fix:** Standardize on exceptions for recoverable errors, warnings for non-critical issues
-
 ### 🟡 Whitespace-Only Code Validation
 **File:** `pheme.c:362-364`
 **Issue:** Whitespace-only code passes through empty check and may cause unexpected Scheme errors

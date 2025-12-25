@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 /* {{{ GuileContext structure
  */
@@ -350,6 +351,29 @@ ZEND_METHOD(GuileContext, __construct)
     }
 }
 
+/* {{{ Helper: Trim leading and trailing whitespace from a string
+ * Returns a pointer to the trimmed string (within original buffer)
+ * and sets *trimmed_len to the length of the trimmed string
+ */
+static const char *trim_string(const char *str, size_t len, size_t *trimmed_len)
+{
+    const char *end;
+    
+    /* Skip leading whitespace */
+    while (len > 0 && isspace((unsigned char)str[len - 1])) {
+        len--;
+    }
+    
+    /* Find first non-whitespace character */
+    end = str;
+    while (*end && isspace((unsigned char)*end)) {
+        end++;
+    }
+    
+    *trimmed_len = len - (end - str);
+    return end;
+}
+
 /* {{{ proto string GuileContext::eval(string code)
    Evaluate Scheme code in this context */
 ZEND_METHOD(GuileContext, eval)
@@ -359,14 +383,17 @@ ZEND_METHOD(GuileContext, eval)
     char *result_str;
     char *code_copy;
     guile_context_object_t *obj = guile_context_from_obj(Z_OBJ_P(getThis()));
+    const char *trimmed_code;
+    size_t trimmed_len;
     
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &code, &code_len) == FAILURE) {
         zend_throw_exception(NULL, "Failed to parse parameters for eval", 0);
         return;
     }
     
-    /* Early validation for empty code */
-    if (code_len == 0) {
+    /* Trim whitespace and validate for empty code */
+    trimmed_code = trim_string(code, code_len, &trimmed_len);
+    if (trimmed_len == 0) {
         RETURN_EMPTY_STRING();
     }
     
