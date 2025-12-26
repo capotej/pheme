@@ -92,35 +92,27 @@ echo "\n=== All syntax error tests completed ===\n";
 Created GuileContext instance
 
 --- Test 1: Unmatched parentheses ---
-%a
 PASS: Unmatched parentheses throws exception
 
 --- Test 2: Undefined variable ---
-%a
 PASS: Undefined variable throws exception
 
 --- Test 3: Subtract with no arguments ---
-%a
 PASS: Subtract with no arguments throws exception
 
 --- Test 4: Invalid define syntax ---
-%a
 PASS: Invalid define syntax throws exception
 
 --- Test 5: Division by zero (runtime error) ---
-%a
 PASS: Division by zero throws exception
 
 --- Test 6: Car on non-pair ---
-%a
 PASS: Car on non-pair throws exception
 
 --- Test 7: Cdr on non-pair ---
-%a
 PASS: Cdr on non-pair throws exception
 
 --- Test 8: Cons with wrong number of args ---
-%a
 PASS: Cons with too many args throws exception
 
 === All syntax error tests completed ===

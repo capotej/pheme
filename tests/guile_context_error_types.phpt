@@ -91,27 +91,23 @@ echo "\n=== All error handling tests completed ===\n";
 Created GuileContext instance
 
 --- Test 1: Syntax error (unmatched parentheses) ---
-%a
 Exception class: Exception
-Exception message: Error evaluating Scheme code
+Exception message: #<unknown port>:%S
 PASS: Syntax error threw exception
 
 --- Test 2: Runtime error (undefined variable) ---
-%a
 Exception class: Exception
-Exception message: Error evaluating Scheme code
+Exception message: Unbound variable:%S
 PASS: Runtime error threw exception
 
 --- Test 3: Runtime error (division by zero) ---
-%a
 Exception class: Exception
-Exception message: Error evaluating Scheme code
+Exception message: Numerical overflow
 PASS: Runtime error threw exception
 
 --- Test 4: Runtime error (wrong type - car on non-pair) ---
-%a
 Exception class: Exception
-Exception message: %a
+Exception message: Wrong type (expecting %S
 PASS: Runtime error threw exception
 
 --- Test 5: Valid code (no error) ---

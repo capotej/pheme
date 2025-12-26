@@ -127,17 +127,128 @@ static void* create_context_helper(void *data)
 typedef struct {
     guile_context_t *ctx;
     char *code;
+    char *error_message;  /* Captured error message from Guile */
 } eval_data_t;
 
-/* {{{ Helper: Evaluate code in a specific context
- * Called within scm_with_guile to ensure proper Guile mode
+/* {{{ Helper: Use scm_internal_lazy_catch to suppress Guile's default error output
+ * scm_internal_lazy_catch doesn't print error messages by default
  */
-static void* eval_in_context_helper(void *data)
+static SCM lazy_error_handler(void *data, SCM tag, SCM throw_args)
+{
+    (void)tag;
+    (void)throw_args;
+    
+    eval_data_t *ed = (eval_data_t*)data;
+    
+    /* Return SCM_UNDEFINED to indicate error */
+    return SCM_UNDEFINED;
+}
+
+/* {{{ Helper: Clean up Guile format placeholders from error message
+ * Guile uses ~A, ~S, ~% etc. in format strings - we remove these for cleaner output
+ */
+static void cleanup_guile_format_placeholders(char *msg)
+{
+    if (msg == NULL) return;
+    
+    char *src = msg;
+    char *dst = msg;
+    
+    while (*src) {
+        if (*src == '~' && *(src + 1)) {
+            /* Skip the ~ and the following character */
+            src += 2;
+        } else {
+            *dst++ = *src++;
+        }
+    }
+    *dst = '\0';
+}
+
+/* {{{ Helper: Convert SCM value to error message string
+ * Extracts a human-readable error message from Guile's exception arguments
+ */
+static char* error_message_from_scm(SCM args)
+{
+    char *msg = NULL;
+    
+    /* Guile exceptions typically have args as: (key format-string arg1 arg2 ...)
+     * where key is a symbol like 'wrong-type-arg', 'syntax-error', etc.
+     * We want to extract the meaningful error message from this. */
+    if (scm_is_pair(args)) {
+        /* Skip the first element (key symbol) and get the message parts */
+        SCM rest = SCM_CDR(args);
+        
+        if (scm_is_pair(rest)) {
+            SCM first_msg_part = SCM_CAR(rest);
+            
+            if (scm_is_string(first_msg_part)) {
+                /* This is likely the format string - use it directly
+                 * The format string itself contains useful info like "Unbound variable: ~S" */
+                msg = scm_to_locale_string(first_msg_part);
+                /* Clean up Guile format placeholders like ~A, ~S, ~% */
+                cleanup_guile_format_placeholders(msg);
+                return msg;
+            } else {
+                /* Convert to string */
+                SCM as_string = scm_object_to_string(first_msg_part, SCM_UNDEFINED);
+                if (scm_is_string(as_string)) {
+                    msg = scm_to_locale_string(as_string);
+                    cleanup_guile_format_placeholders(msg);
+                }
+            }
+        }
+        
+        /* Fallback: convert entire args to string */
+        if (msg == NULL) {
+            SCM as_string = scm_object_to_string(args, SCM_UNDEFINED);
+            if (scm_is_string(as_string)) {
+                msg = scm_to_locale_string(as_string);
+                cleanup_guile_format_placeholders(msg);
+            }
+        }
+    } else if (scm_is_string(args)) {
+        /* args is directly a string */
+        msg = scm_to_locale_string(args);
+        cleanup_guile_format_placeholders(msg);
+    } else {
+        /* Convert to string representation */
+        SCM as_string = scm_object_to_string(args, SCM_UNDEFINED);
+        if (scm_is_string(as_string)) {
+            msg = scm_to_locale_string(as_string);
+            cleanup_guile_format_placeholders(msg);
+        }
+    }
+    
+    return msg;
+}
+
+/* {{{ Helper: Error handler for scm_c_catch
+ * Called when Guile throws an exception during eval
+ */
+static SCM eval_error_handler(void *data, SCM key, SCM args)
+{
+    (void)key;  /* Unused - we catch all exceptions */
+    
+    eval_data_t *ed = (eval_data_t*)data;
+    
+    /* Extract error message and store in eval_data_t */
+    if (ed->error_message == NULL) {
+        ed->error_message = error_message_from_scm(args);
+    }
+    
+    /* Return SCM_UNDEFINED to indicate error - we'll check error_message */
+    return SCM_UNDEFINED;
+}
+
+/* {{{ Helper: Body function for scm_c_catch
+ * Evaluates the code within the proper module context
+ */
+static SCM eval_body(void *data)
 {
     eval_data_t *ed = (eval_data_t*)data;
     guile_context_t *ctx = ed->ctx;
-    SCM old_module, result, result_as_string;
-    char *result_str;
+    SCM old_module, result;
     char *eval_cmd;
     size_t cmd_size;
     
@@ -151,7 +262,12 @@ static void* eval_in_context_helper(void *data)
     eval_cmd = (char*)malloc(cmd_size);
     if (eval_cmd == NULL) {
         scm_set_current_module(old_module);
-        return (void*)-1;
+        scm_error(
+            scm_from_locale_symbol("pheme-error"),
+            "eval_body",
+            "Failed to allocate memory for eval command",
+            SCM_EOL, SCM_EOL
+        );
     }
     
     /* Evaluate the code - scm_c_eval_string uses current module for compilation */
@@ -164,7 +280,62 @@ static void* eval_in_context_helper(void *data)
     /* Restore original module */
     scm_set_current_module(old_module);
     
-    /* Check for errors */
+    return result;
+}
+
+/* {{{ Helper: Pre-unwind handler for scm_c_catch
+ * Called during exception unwinding before the error handler
+ */
+static SCM eval_pre_unwind(void *data, SCM key, SCM args)
+{
+    (void)data;
+    (void)key;
+    (void)args;
+    /* Return the throw arguments to be handled by the main handler */
+    return SCM_UNDEFINED;
+}
+
+/* {{{ Helper: Evaluate code in a specific context with error capture
+ * Called within scm_with_guile to ensure proper Guile mode
+ * Uses scm_c_catch to capture actual error messages from Guile
+ */
+static void* eval_in_context_helper(void *data)
+{
+    eval_data_t *ed = (eval_data_t*)data;
+    guile_context_t *ctx = ed->ctx;
+    SCM old_module, result, result_as_string;
+    char *result_str;
+    
+    /* Initialize error message pointer to NULL */
+    ed->error_message = NULL;
+    
+    /* Save current module and switch to context's module */
+    old_module = scm_current_module();
+    scm_set_current_module(ctx->module);
+    
+    /* Use scm_c_catch to catch exceptions and capture error messages
+     * The pre-unwind handler captures the error args for message extraction */
+    result = scm_c_catch(
+        SCM_BOOL_T,           /* Catch all exceptions (throw/catch) */
+        eval_body,            /* Function to evaluate the code */
+        ed,                   /* Data passed to eval_body */
+        eval_error_handler,   /* Handler for exceptions */
+        ed,                   /* Data passed to error handler */
+        eval_pre_unwind,      /* Pre-unwind handler to capture args */
+        ed                    /* Data passed to pre-unwind handler */
+    );
+    
+    /* Restore original module */
+    scm_set_current_module(old_module);
+    
+    /* Check if an error occurred (error_message was set) */
+    if (ed->error_message != NULL) {
+        /* Return a special pointer that encodes the error message */
+        /* We'll check for this in the calling code */
+        return (void*)-1;
+    }
+    
+    /* Check for errors (SCM_FALSEP check, though scm_c_catch should have caught them) */
     if (SCM_FALSEP(result)) {
         return (void*)-1;
     }
@@ -408,15 +579,21 @@ ZEND_METHOD(GuileContext, eval)
     /* Copy PHP string to persistent memory for Guile */
     code_copy = estrndup(code, code_len);
     
-    /* Evaluate in context */
-    eval_data_t data = { obj->ctx, code_copy };
+    /* Evaluate in context - initialize error_message to NULL */
+    eval_data_t data = { obj->ctx, code_copy, NULL };
     
     result_str = (char*)scm_with_guile(eval_in_context_helper, &data);
     efree(code_copy);
     
     /* Check for error sentinel - distinct from NULL which could be a valid string */
     if (result_str == NULL || result_str == (void*)-1) {
-        zend_throw_exception(NULL, "Error evaluating Scheme code", 0);
+        /* Use captured error message from Guile, or fallback to generic message */
+        const char *error_msg = data.error_message ? data.error_message : "Error evaluating Scheme code";
+        zend_throw_exception(NULL, error_msg, 0);
+        /* Free the captured error message if it was set */
+        if (data.error_message != NULL) {
+            free((void*)data.error_message);
+        }
         return;
     }
     

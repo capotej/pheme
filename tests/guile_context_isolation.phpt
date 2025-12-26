@@ -101,7 +101,6 @@ Created two GuileContext instances
 --- Test 1: Variable isolation check ---
 Context 1 - Set test-var: #<unspecified>
 Context 1 - Read test-var: "hello from context 1"
-%a
 Context 2 - test-var isolation verified!
 
 --- Test 2: Independent variable definition ---
