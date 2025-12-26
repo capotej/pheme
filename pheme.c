@@ -261,13 +261,17 @@ static SCM eval_body(void *data)
     cmd_size = strlen(ed->code) + 8 + 1;
     eval_cmd = (char*)malloc(cmd_size);
     if (eval_cmd == NULL) {
+        /* Restore module before signaling error */
         scm_set_current_module(old_module);
+        /* Use SCM_NULLP to throw a non-continuable error that aborts */
         scm_error(
             scm_from_locale_symbol("pheme-error"),
             "eval_body",
             "Failed to allocate memory for eval command",
             SCM_EOL, SCM_EOL
         );
+        /* Unreachable - scm_error does not return */
+        return SCM_UNDEFINED;
     }
     
     /* Evaluate the code - scm_c_eval_string uses current module for compilation */
