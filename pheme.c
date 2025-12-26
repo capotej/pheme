@@ -133,19 +133,6 @@ typedef struct {
     char *error_message;  /* Captured error message from Guile */
 } eval_data_t;
 
-/* {{{ Helper: Use scm_internal_lazy_catch to suppress Guile's default error output
- * scm_internal_lazy_catch doesn't print error messages by default
- */
-static SCM lazy_error_handler(void *data, SCM tag, SCM throw_args)
-{
-    (void)tag;
-    (void)throw_args;
-    
-    eval_data_t *ed = (eval_data_t*)data;
-    
-    /* Return SCM_UNDEFINED to indicate error */
-    return SCM_UNDEFINED;
-}
 
 /* {{{ Helper: Clean up Guile format placeholders from error message
  * Guile uses ~A, ~S, ~% etc. in format strings - we remove these for cleaner output
