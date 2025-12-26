@@ -94,10 +94,10 @@ static SCM create_fresh_module(void)
     SCM fresh_module;
     
     /* Create a fresh module with (guile) bindings imported
-     * Using the working Scheme approach */
-    fresh_module = scm_eval_string(scm_from_locale_string(
+     * Using scm_c_eval_string for proper C integration */
+    fresh_module = scm_c_eval_string(
         "(let ((m (make-module))) (module-use! m (resolve-module '(guile))) m)"
-    ));
+    );
     
     return fresh_module;
 }
