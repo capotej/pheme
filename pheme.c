@@ -632,10 +632,17 @@ ZEND_METHOD(GuileContext, free)
 }
 
 /* {{{ proto void GuileContext::__destruct()
-   Destructor - automatically frees the Guile context
-   Note: This is handled by guile_context_free_object, but kept for API compatibility */
+   Destructor - automatically frees the Guile context */
 ZEND_METHOD(GuileContext, __destruct)
 {
-    /* Context is freed by the free_obj handler, nothing to do here */
+    guile_context_object_t *obj = guile_context_from_obj(Z_OBJ_P(getThis()));
+    
     (void)ZEND_NUM_ARGS();
+    
+    /* Check for valid pointer (not NULL, not sentinel) */
+    if (obj->ctx != NULL && obj->ctx != (void*)-1) {
+        /* Clean up Guile module before freeing the struct */
+        scm_with_guile(free_guile_context_helper, obj->ctx);
+        obj->ctx = (void*)-1;
+    }
 }
