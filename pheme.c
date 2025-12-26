@@ -346,15 +346,10 @@ static void* eval_in_context_helper(void *data)
     /* Convert the Scheme string to C string */
     result_str = scm_to_locale_string(result_as_string);
     
-    /* Check for conversion failure and clean up SCM value */
+    /* Check for conversion failure */
     if (result_str == NULL) {
-        /* Free the memory allocated by scm_to_locale_string before failure */
-        scm_gc_free(result_as_string, 0, "scm_to_locale_string");
         return (void*)-1;
     }
-    
-    /* Free the SCM string before returning the C string */
-    scm_gc_free(result_as_string, 0, "result_as_string");
     
     return result_str;
 }
@@ -593,15 +588,16 @@ ZEND_METHOD(GuileContext, eval)
         /* Use captured error message from Guile, or fallback to generic message */
         const char *error_msg = data.error_message ? data.error_message : "Error evaluating Scheme code";
         zend_throw_exception(NULL, error_msg, 0);
-        /* Free the captured error message if it was set */
+        /* Free the captured error message if it was set (malloc'd by scm_to_locale_string) */
         if (data.error_message != NULL) {
             free((void*)data.error_message);
         }
         return;
     }
     
-    /* Return the result as a PHP string */
+    /* Return the result as a PHP string and free the malloc'd result_str */
     RETVAL_STRING(result_str);
+    free(result_str);
 }
 
 /* {{{ proto void GuileContext::free()
