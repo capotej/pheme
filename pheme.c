@@ -30,6 +30,9 @@ typedef struct _guile_context_object {
 
 /* Helper to get guile_context_object_t from zend_object */
 static inline guile_context_object_t *guile_context_from_obj(zend_object *obj) {
+    if (obj == NULL) {
+        return NULL;
+    }
     return (guile_context_object_t*)((char*)obj - obj->handlers->offset);
 }
 
