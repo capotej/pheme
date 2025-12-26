@@ -42,11 +42,6 @@ static void guile_context_free_object(zend_object *object);
 
 /* }}} */
 
-/* {{{ PHP_FUNCTION declarations
- */
-PHP_FUNCTION(guile_context);
-/* }}} */
-
 /* {{{ GuileContext class arginfo
  */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_guile_context_construct, 0, 0, 0)
@@ -66,7 +61,6 @@ ZEND_END_ARG_INFO()
 /* {{{ pheme_functions[]
  */
 const zend_function_entry pheme_functions[] = {
-    PHP_FE(guile_context, arginfo_guile_context_construct)
     PHP_FE_END
 };
 /* }}} */
@@ -469,27 +463,6 @@ zend_module_entry pheme_module_entry = {
 #ifdef COMPILE_DL_PHEME
 ZEND_GET_MODULE(pheme)
 #endif
-
-/* {{{ proto GuileContext guile_context()
-   Create a new Guile context with persistent state across evaluations */
-PHP_FUNCTION(guile_context)
-{
-    guile_context_object_t *obj;
-    
-    (void)ZEND_NUM_ARGS();
-    
-    /* Create PHP object - constructor will create context */
-    object_init_ex(return_value, guile_context_ce);
-    obj = guile_context_from_obj(Z_OBJ_P(return_value));
-    
-    /* Create context in Guile mode */
-    obj->ctx = (guile_context_t*)scm_with_guile(create_context_helper, NULL);
-    
-    if (obj->ctx == NULL) {
-        zend_throw_exception(NULL, "Failed to create Guile context", 0);
-        RETURN_FALSE;
-    }
-}
 
 /* {{{ proto void GuileContext::__construct()
    Constructor - creates context if not already done */
