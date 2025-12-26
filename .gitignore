@@ -12,6 +12,12 @@
 *.libs
 .libs/
 
+*.md
+*.txt
+!README.md
+!AGENTS.md
+!GUILE.md
+
 # PHP Extension Module Output
 modules/*.so
 modules/*.la
