@@ -92,22 +92,22 @@ Created GuileContext instance
 
 --- Test 1: Syntax error (unmatched parentheses) ---
 Exception class: Exception
-Exception message: #<unknown port>:%S
+Exception message: #<unknown port>:%S (code: %S)
 PASS: Syntax error threw exception
 
 --- Test 2: Runtime error (undefined variable) ---
 Exception class: Exception
-Exception message: Unbound variable:%S
+Exception message: Unbound variable:%S (code: %S)
 PASS: Runtime error threw exception
 
 --- Test 3: Runtime error (division by zero) ---
 Exception class: Exception
-Exception message: Numerical overflow
+Exception message: Numerical overflow (code: %S)
 PASS: Runtime error threw exception
 
 --- Test 4: Runtime error (wrong type - car on non-pair) ---
 Exception class: Exception
-Exception message: Wrong type (expecting %S
+Exception message: Wrong type (expecting %S (code: %S)
 PASS: Runtime error threw exception
 
 --- Test 5: Valid code (no error) ---

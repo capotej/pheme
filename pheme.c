@@ -564,14 +564,16 @@ ZEND_METHOD(GuileContext, eval)
     if (data.error_message != NULL) {
         /* Use captured error message from Guile, or fallback to generic message */
         const char *error_msg = data.error_message;
-        zend_throw_exception(NULL, error_msg, 0);
+        /* Create error message with context about which code failed */
+        zend_throw_exception_ex(NULL, 0, "%s (code: %s)", error_msg, code);
         /* Free the captured error message (malloc'd by scm_to_locale_string) */
         free((void*)data.error_message);
         return;
     }
     
     if (result_str == NULL) {
-        zend_throw_exception(NULL, "Error evaluating Scheme code", 0);
+        /* Include the code in the error message for context */
+        zend_throw_exception_ex(NULL, 0, "Error evaluating Scheme code: %s", code);
         return;
     }
     
