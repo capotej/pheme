@@ -6,4 +6,4 @@ Pheme is a PHP 8.5 extension that allows you to use Scheme inside of your PHP ap
 make test TESTS=tests/
 
 # Guile Integration Docs
-See GUILE.md
+See GUILE.md (it's very large, so use `grep` to search it)
