@@ -353,6 +353,9 @@ static void* eval_in_context_helper(void *data)
         return (void*)-1;
     }
     
+    /* Free the SCM string before returning the C string */
+    scm_gc_free(result_as_string, 0, "result_as_string");
+    
     return result_str;
 }
 
