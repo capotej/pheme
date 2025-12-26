@@ -368,7 +368,18 @@ PHP_MINIT_FUNCTION(pheme)
  */
 PHP_MSHUTDOWN_FUNCTION(pheme)
 {
-    /* No global cleanup needed - each object manages its own context */
+    /* No global Guile cleanup needed.
+     *
+     * Guile (when initialized with scm_init_guile) does not require explicit
+     * global cleanup because:
+     * 1. There is no scm_shutdown_guile() function in the public API
+     * 2. All Guile resources (modules, ports, etc.) are GC-managed
+     * 3. Per-context cleanup is handled by GuileContext::__destruct() and free()
+     * 4. The OS will reclaim all memory when the PHP process exits
+     *
+     * Each GuileContext object cleans up its own module via free_guile_context_helper()
+     * when the object is destroyed or free() is called.
+     */
     return SUCCESS;
 }
 /* }}} */
