@@ -231,6 +231,9 @@ static SCM eval_error_handler(void *data, SCM key, SCM args)
     return SCM_UNDEFINED;
 }
 
+/* Eval wrapper format for wrapping user code in a begin expression */
+#define EVAL_WRAPPER "(begin )"
+
 /* {{{ Helper: Body function for scm_c_catch
  * Evaluates the code within the proper module context
  */
@@ -247,8 +250,8 @@ static SCM eval_body(void *data)
     scm_set_current_module(ctx->module);
     
     /* Dynamically allocate command buffer based on code length */
-    /* Format is "(begin %s)" which adds 8 chars (7 for wrapper + 1 for null terminator) */
-    cmd_size = strlen(ed->code) + 8 + 1;
+    /* Format is EVAL_WRAPPER "%s" - sizeof includes null terminator */
+    cmd_size = strlen(ed->code) + sizeof(EVAL_WRAPPER);
     eval_cmd = (char*)malloc(cmd_size);
     if (eval_cmd == NULL) {
         /* Restore module before signaling error */
