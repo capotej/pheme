@@ -526,6 +526,7 @@ ZEND_METHOD(GuileContext, __construct)
 static const char *trim_string(const char *str, size_t len, size_t *trimmed_len)
 {
     const char *end;
+    size_t trimmed;
     
     /* Skip leading whitespace */
     while (len > 0 && isspace((unsigned char)str[len - 1])) {
@@ -538,7 +539,17 @@ static const char *trim_string(const char *str, size_t len, size_t *trimmed_len)
         end++;
     }
     
-    *trimmed_len = len - (end - str);
+    /* Calculate trimmed length */
+    trimmed = len - (end - str);
+    
+    /* Validate that trimmed_len is reasonable - must not exceed original length
+     * and must not be larger than a reasonable maximum for input validation */
+    if (trimmed > len || trimmed > 1048576) { /* 1MB sanity check */
+        *trimmed_len = 0;
+        return str;
+    }
+    
+    *trimmed_len = trimmed;
     return end;
 }
 
