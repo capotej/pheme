@@ -12,6 +12,14 @@
 #include <string.h>
 #include <ctype.h>
 
+/* {{{ Sentinel enum for error/validity tracking
+ * Replaces (void*)-1 sentinel pattern to avoid type confusion
+ */
+typedef enum {
+    PHEME_VALID = 0,      /* Valid pointer/state */
+    PHEME_SENTINEL = 1    /* Freed/invalid sentinel marker */
+} pheme_sentinel_t;
+
 /* {{{ GuileContext structure
  */
 
@@ -319,16 +327,9 @@ static void* eval_in_context_helper(void *data)
     /* Restore original module */
     scm_set_current_module(old_module);
     
-    /* Check if an error occurred (error_message was set) */
+    /* Check if an error occurred (error_message was set) - error_message indicates the error */
     if (ed->error_message != NULL) {
-        /* Return a special pointer that encodes the error message */
-        /* We'll check for this in the calling code */
-        return (void*)-1;
-    }
-    
-    /* Check for errors (SCM_FALSEP check, though scm_c_catch should have caught them) */
-    if (SCM_FALSEP(result)) {
-        return (void*)-1;
+        return NULL;
     }
     
     /* Convert result to string using scm_object_to_string */
@@ -336,11 +337,6 @@ static void* eval_in_context_helper(void *data)
     
     /* Convert the Scheme string to C string */
     result_str = scm_to_locale_string(result_as_string);
-    
-    /* Check for conversion failure */
-    if (result_str == NULL) {
-        return (void*)-1;
-    }
     
     return result_str;
 }
@@ -410,7 +406,7 @@ static void *free_guile_context_helper(void *data)
     guile_context_t *ctx = (guile_context_t*)data;
     SCM old_module;
     
-    if (ctx == NULL || ctx == (void*)-1) {
+    if (ctx == NULL || ctx == (guile_context_t*)PHEME_SENTINEL) {
         return NULL;
     }
     
@@ -432,13 +428,13 @@ static void guile_context_free_object(zend_object *object)
 {
     guile_context_object_t *obj = guile_context_from_obj(object);
     
-    /* Check for valid pointer (not NULL, not sentinel) */
-    if (obj->ctx != NULL && obj->ctx != (void*)-1) {
+    /* Check for valid pointer (not NULL) */
+    if (obj->ctx != NULL) {
         /* Clean up Guile module before freeing the struct */
         scm_with_guile(free_guile_context_helper, obj->ctx);
     }
     /* Mark as freed to prevent double-free and detect reuse after free */
-    obj->ctx = (void*)-1;
+    obj->ctx = (guile_context_t*)PHEME_SENTINEL;
     
     zend_object_std_dtor(&obj->std);
 }
@@ -473,7 +469,7 @@ ZEND_METHOD(GuileContext, __construct)
     (void)ZEND_NUM_ARGS();
     
     /* Check for freed sentinel - prevent reuse after free */
-    if (obj->ctx == (void*)-1) {
+    if (obj->ctx == (guile_context_t*)PHEME_SENTINEL) {
         zend_throw_exception(NULL, "Cannot reuse freed GuileContext object", 0);
         return;
     }
@@ -550,7 +546,7 @@ ZEND_METHOD(GuileContext, eval)
     }
     
     /* Check for NULL (never allocated) or sentinel (freed) */
-    if (obj->ctx == NULL || obj->ctx == (void*)-1) {
+    if (obj->ctx == NULL || obj->ctx == (guile_context_t*)PHEME_SENTINEL) {
         zend_throw_exception(NULL, "Context not found for this object", 0);
         return;
     }
@@ -564,15 +560,18 @@ ZEND_METHOD(GuileContext, eval)
     result_str = (char*)scm_with_guile(eval_in_context_helper, &data);
     efree(code_copy);
     
-    /* Check for error sentinel - distinct from NULL which could be a valid string */
-    if (result_str == NULL || result_str == (void*)-1) {
+    /* Check for error - use error_message flag instead of sentinel pointer comparison */
+    if (data.error_message != NULL) {
         /* Use captured error message from Guile, or fallback to generic message */
-        const char *error_msg = data.error_message ? data.error_message : "Error evaluating Scheme code";
+        const char *error_msg = data.error_message;
         zend_throw_exception(NULL, error_msg, 0);
-        /* Free the captured error message if it was set (malloc'd by scm_to_locale_string) */
-        if (data.error_message != NULL) {
-            free((void*)data.error_message);
-        }
+        /* Free the captured error message (malloc'd by scm_to_locale_string) */
+        free((void*)data.error_message);
+        return;
+    }
+    
+    if (result_str == NULL) {
+        zend_throw_exception(NULL, "Error evaluating Scheme code", 0);
         return;
     }
     
@@ -590,7 +589,7 @@ ZEND_METHOD(GuileContext, free)
     (void)ZEND_NUM_ARGS();
     
     /* Check for sentinel (freed) or NULL (never allocated) */
-    if (obj->ctx == NULL || obj->ctx == (void*)-1) {
+    if (obj->ctx == NULL || obj->ctx == (guile_context_t*)PHEME_SENTINEL) {
         /* Already freed or never allocated, nothing to do */
         RETURN_TRUE;
     }
@@ -599,7 +598,7 @@ ZEND_METHOD(GuileContext, free)
     scm_with_guile(free_guile_context_helper, obj->ctx);
     
     /* Set sentinel to detect reuse after free */
-    obj->ctx = (void*)-1;
+    obj->ctx = (guile_context_t*)PHEME_SENTINEL;
     
     RETURN_TRUE;
 }
@@ -613,9 +612,9 @@ ZEND_METHOD(GuileContext, __destruct)
     (void)ZEND_NUM_ARGS();
     
     /* Check for valid pointer (not NULL, not sentinel) */
-    if (obj->ctx != NULL && obj->ctx != (void*)-1) {
+    if (obj->ctx != NULL && obj->ctx != (guile_context_t*)PHEME_SENTINEL) {
         /* Clean up Guile module before freeing the struct */
         scm_with_guile(free_guile_context_helper, obj->ctx);
-        obj->ctx = (void*)-1;
+        obj->ctx = (guile_context_t*)PHEME_SENTINEL;
     }
 }
