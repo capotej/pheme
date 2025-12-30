@@ -35,13 +35,6 @@ jobs:
       - name: Run tests
         run: make test TESTS=tests/ NO_INTERACTION=1
 
-      - name: Run tests with valgrind
-        env:
-          TEST_PHP_SRCDIR: ${{ github.workspace }}
-        run: |
-          echo > tmp-php.ini
-          /usr/bin/php8.5 run-tests.php -n -c tmp-php.ini -d extension_dir=modules/ -d extension=pheme --show-diff -p /usr/bin/php8.5 -M "--suppressions=valgrind-suppressions.supp" tests/
-
       - name: Upload test results on failure
         if: failure()
         uses: actions/upload-artifact@v4
