@@ -121,6 +121,10 @@ static void* create_context_helper(void *data)
         return NULL;
     }
     
+    /* Zero-initialize the structure to prevent uninitialized value warnings
+     * in Guile's garbage collector during GC_init/scanning */
+    memset(ctx, 0, sizeof(guile_context_t));
+    
     /* Create the module - must be done in Guile mode */
     ctx->module = create_fresh_module();
     
@@ -401,6 +405,10 @@ static zend_object *guile_context_create_object(zend_class_entry *ce)
     guile_context_object_t *obj = zend_object_alloc(sizeof(guile_context_object_t), ce);
     
     zend_object_std_init(&obj->std, ce);
+    
+    /* Zero-initialize our structure to prevent uninitialized value warnings
+     * in Guile's garbage collector during GC_init/scanning */
+    memset(obj, 0, sizeof(guile_context_object_t));
     obj->ctx = NULL;
     
     obj->std.handlers = &guile_context_handlers;
