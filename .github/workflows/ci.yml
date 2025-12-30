@@ -40,7 +40,7 @@ jobs:
           TEST_PHP_SRCDIR: ${{ github.workspace }}
         run: |
           echo > tmp-php.ini
-          php run-tests.php -n -c tmp-php.ini -d extension_dir=modules/ -d extension=pheme --show-diff -p1 -m tests/
+          php run-tests.php -n -c tmp-php.ini -d extension_dir=modules/ -d extension=pheme --show-diff -p1 -P -m tests/
 
       - name: Upload test results on failure
         if: failure()
