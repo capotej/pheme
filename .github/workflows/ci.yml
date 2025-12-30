@@ -38,9 +38,7 @@ jobs:
       - name: Run tests with valgrind
         run: |
           echo > tmp-php.ini
-          export TEST_PHP_EXECUTABLE=$(which php)
-          export TEST_PHP_SRCDIR=$PWD
-          php run-tests.php -n -c tmp-php.ini -d extension_dir=modules/ -d extension=pheme --show-diff -p1 -m tests/
+          TEST_PHP_EXECUTABLE=$(which php) TEST_PHP_SRCDIR=$PWD php run-tests.php -n -c tmp-php.ini -d extension_dir=modules/ -d extension=pheme --show-diff -p1 -m tests/
 
       - name: Upload test results on failure
         if: failure()
