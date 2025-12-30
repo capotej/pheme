@@ -21,6 +21,7 @@
 # PHP Extension Module Output
 modules/*.so
 modules/*.la
+pheme.dep
 
 # Build Directory
 build/
