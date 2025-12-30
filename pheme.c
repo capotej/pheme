@@ -116,7 +116,11 @@ static void* create_context_helper(void *data)
     
     (void)data;  /* Unused */
     
-    ctx = (guile_context_t*)malloc(sizeof(guile_context_t));
+    /* Use calloc to zero-initialize the struct, ensuring ctx->module is
+     * SCM_UNDEFINED (which equals 0) before Guile's GC can access it.
+     * This prevents uninitialized memory access if GC runs between malloc
+     * and module assignment. */
+    ctx = (guile_context_t*)calloc(1, sizeof(guile_context_t));
     if (ctx == NULL) {
         return NULL;
     }
