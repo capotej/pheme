@@ -2,9 +2,9 @@
 
 Pheme is a PHP 8.5 extension that allows you to use Scheme inside your PHP applications, using GNU Guile as the embedded Scheme interpreter.
 
-## Disclaimer
+## Disclaimer ⚠️
 
-This extension was almost entirely vibe-coded using MiniMax M2.1 for my own hobbyist needs, use in **production at your own risk**.
+This extension was almost entirely vibecoded (Kilo Code/MiniMax M2.1) for my own hobbyist needs, use it in **production at your own risk**.
 
 ## Overview
 
@@ -35,7 +35,7 @@ brew install guile
 
 **Ubuntu/Debian:**
 ```bash
-sudo apt-get install guile-3.0 libguile-3.0-dev
+sudo apt-get install guile-3.0 guile-3.0-dev
 ```
 
 **Fedora/RHEL:**
@@ -319,7 +319,7 @@ Per-context Guile runtimes are **not possible** with Guile's current design beca
 
 **Important:** Pheme has the following thread safety considerations:
 
-- Guile initialization (`scm_init_guile()`) is called once for the main thread
+- Guile initialization (`scm_init_guile()`) is called once for the main thread, when the extension is loaded into PHP.
 - Worker threads may need their own initialization for full Guile support
 - Multiple threads should not share the same `GuileContext` instance without external synchronization
 
