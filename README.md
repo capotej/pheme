@@ -267,6 +267,54 @@ for ($i = 0; $i <= 10; $i++) {
 ?>
 ```
 
+## Architecture
+
+### Guile Runtime Model
+
+Pheme follows GNU Guile's threading model, which has important implications for how contexts work:
+
+#### Single Runtime Per Thread
+
+GNU Guile is designed with **one interpreter instance per thread**. The `scm_init_guile()` function initializes the Guile interpreter state for the current thread, and this can only be done once per thread. Multiple calls to initialize Guile in the same thread are not supported.
+
+```mermaid
+flowchart TB
+    subgraph "PHP Process"
+        subgraph "Thread 1"
+            Guile["Guile Runtime (scm_init_guile)"]
+            
+            subgraph "Guile Runtime"
+                Module1["(pheme-context-1) Module"]
+                Module2["(pheme-context-2) Module"]
+                GuileBase["(guile) Base Module"]
+                
+                Module1 --> GuileBase
+                Module2 --> GuileBase
+            end
+        end
+    end
+    
+    PHP1["GuileContext #1"] --> Module1
+    PHP2["GuileContext #2"] --> Module2
+```
+
+#### Context Isolation via Modules
+
+Since you cannot have multiple independent Guile runtimes per thread, Pheme uses **separate modules** to achieve context isolation:
+
+- Each `GuileContext` gets its own Scheme module
+- Variables defined in one context are not visible in another
+- The runtime is shared, but the namespaces are isolated
+- This is the most efficient design given Guile's architecture
+
+#### Why Not Per-Context Runtimes?
+
+Per-context Guile runtimes are **not possible** with Guile's current design because:
+
+1. Guile uses thread-local storage for interpreter state
+2. The interpreter can only be initialized once per thread
+3. Alternative approaches (child interpreters, subprocesses) have significant overhead
+
 ## Thread Safety
 
 **Important:** Pheme has the following thread safety considerations:
