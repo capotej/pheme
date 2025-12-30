@@ -36,10 +36,11 @@ jobs:
         run: make test TESTS=tests/ NO_INTERACTION=1
 
       - name: Run tests with valgrind
+        env:
+          TEST_PHP_EXECUTABLE: /usr/bin/php8.5
+          TEST_PHP_SRCDIR: ${{ github.workspace }}
         run: |
           echo > tmp-php.ini
-          export TEST_PHP_EXECUTABLE="/usr/bin/php8.5"
-          export TEST_PHP_SRCDIR="$PWD"
           php run-tests.php -n -c tmp-php.ini -d extension_dir=modules/ -d extension=pheme --show-diff -p1 -m tests/
 
       - name: Upload test results on failure
