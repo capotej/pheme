@@ -37,7 +37,6 @@ jobs:
 
       - name: Run tests with valgrind
         env:
-          TEST_PHP_EXECUTABLE: /usr/bin/php8.5
           TEST_PHP_SRCDIR: ${{ github.workspace }}
         run: |
           echo > tmp-php.ini
