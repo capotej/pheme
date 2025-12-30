@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y guile-3.0 libguile-3.0-dev autoconf build-essential pkg-config
+          sudo apt-get install -y guile-3.0 guile-3.0-dev autoconf build-essential pkg-config
 
       - name: Build extension
         run: |
