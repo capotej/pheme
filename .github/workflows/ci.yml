@@ -38,10 +38,9 @@ jobs:
       - name: Run tests with valgrind
         env:
           TEST_PHP_SRCDIR: ${{ github.workspace }}
-          PHP_BINARY: ${{ runner.tool_cache }}/php/8.5/bin/php
         run: |
           echo > tmp-php.ini
-          php run-tests.php -n -c tmp-php.ini -d extension_dir=modules/ -d extension=pheme --show-diff -p1 -P -m tests/
+          /usr/bin/php8.5 run-tests.php -n -c tmp-php.ini -d extension_dir=modules/ -d extension=pheme --show-diff -p1 -m tests/
 
       - name: Upload test results on failure
         if: failure()
