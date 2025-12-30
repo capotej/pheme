@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y guile-3.0 guile-3.0-dev autoconf build-essential pkg-config
+          sudo apt-get install -y guile-3.0 guile-3.0-dev autoconf build-essential pkg-config valgrind
 
       - name: Build extension
         run: |
@@ -34,6 +34,9 @@ jobs:
 
       - name: Run tests
         run: make test TESTS=tests/ NO_INTERACTION=1
+
+      - name: Run tests with valgrind
+        run: make test TESTS=tests/ NO_INTERACTION=1 SHOW_MEM=1 -m
 
       - name: Upload test results on failure
         if: failure()
@@ -45,3 +48,10 @@ jobs:
             tests/*.exp
             tests/*.log
             tests/*.out
+
+      - name: Upload valgrind logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: valgrind-logs
+          path: tests/*.mem
