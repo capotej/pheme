@@ -40,7 +40,7 @@ jobs:
           TEST_PHP_SRCDIR: ${{ github.workspace }}
         run: |
           echo > tmp-php.ini
-          /usr/bin/php8.5 run-tests.php -n -c tmp-php.ini -d extension_dir=modules/ -d extension=pheme --show-diff -p /usr/bin/php8.5 --valgrind tests/ --valgrind-opts="--suppressions=valgrind-suppressions.supp"
+          /usr/bin/php8.5 run-tests.php -n -c tmp-php.ini -d extension_dir=modules/ -d extension=pheme --show-diff -p /usr/bin/php8.5 -M "--suppressions=valgrind-suppressions.supp" tests/
 
       - name: Upload test results on failure
         if: failure()
