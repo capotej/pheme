@@ -65,6 +65,22 @@ make test TESTS=tests/
 sudo make install
 ```
 
+### Installing via PIE (Recommended)
+
+You can install Pheme using [PIE](https://github.com/php/pie):
+
+```bash
+pie install capotej/pheme
+```
+
+### Installing via PECL
+
+You can also install Pheme using PECL:
+
+```bash
+pecl install capotej/pheme
+```
+
 ### Enabling the Extension
 
 Add the following to your `php.ini` file:
