@@ -1,0 +1,9 @@
+{
+    "name": "capotej/pheme",
+    "description": "PHP extension that allows embedding of Scheme within PHP applications (using GNU Guile)",
+    "type": "php-extension",
+    "license": "GPL-3.0-only",
+    "require": {
+        "php": ">=8.5"
+    }
+}
