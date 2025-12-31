@@ -43,6 +43,22 @@ sudo apt-get install guile-3.0 guile-3.0-dev
 sudo dnf install guile guile-devel
 ```
 
+### Installing via PIE (Recommended)
+
+You can install Pheme using [PIE](https://github.com/php/pie):
+
+```bash
+pie install capotej/pheme
+```
+
+### Installing via PECL
+
+You can also install Pheme using PECL:
+
+```bash
+pecl install capotej/pheme
+```
+
 ### Building the Extension
 
 ```bash
@@ -63,22 +79,6 @@ make test TESTS=tests/
 
 # Install (requires root)
 sudo make install
-```
-
-### Installing via PIE (Recommended)
-
-You can install Pheme using [PIE](https://github.com/php/pie):
-
-```bash
-pie install capotej/pheme
-```
-
-### Installing via PECL
-
-You can also install Pheme using PECL:
-
-```bash
-pecl install capotej/pheme
 ```
 
 ### Enabling the Extension
