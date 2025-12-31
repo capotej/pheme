@@ -383,8 +383,9 @@ pheme/
 
 ## Version History
 
-- **0.2.0** - Current version
-  - Initial stable release
+- **0.2.1** - Bug fixes and improvements
+
+- **0.2.0** - Initial stable release
   - GuileContext class with eval, free, and destruct methods
   - Context isolation support
   - Error handling with proper exception messages
