@@ -11,7 +11,7 @@ This extension was almost entirely vibecoded (Kilo Code/MiniMax M2.1) for my own
 Pheme provides a `GuileContext` class that enables PHP developers to:
 
 - Evaluate Scheme code directly from PHP
-- Create isolated execution contexts that maintain execution state
+- Create isolated execution contexts that maintain state
 - Leverage Scheme's powerful functional programming features within PHP
 - Share data between PHP and Scheme environments
 
