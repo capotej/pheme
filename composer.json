@@ -4,7 +4,7 @@
     "type": "php-ext",
     "license": "GPL-3.0-only",
     "require": {
-        "php": ">=8.5"
+        "php": ">=8.4"
     },
     "php-ext": {
         "extension-name": "pheme",
