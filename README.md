@@ -1,6 +1,6 @@
 # Pheme
 
-Pheme is a PHP 8.5 extension that allows you to use Scheme inside your PHP applications, using GNU Guile as the embedded Scheme interpreter.
+Pheme is a PHP extension that allows you to use Scheme inside your PHP applications, using GNU Guile as the embedded Scheme interpreter.
 
 ## Disclaimer ⚠️
 
@@ -17,7 +17,7 @@ Pheme provides a `GuileContext` class that enables PHP developers to:
 
 ## Requirements
 
-- PHP 8.5 or higher
+- PHP 8.4 or higher
 - GNU Guile 2.0 or higher (3.0 recommended)
 - GCC or compatible C compiler
 - GNU Autoconf
